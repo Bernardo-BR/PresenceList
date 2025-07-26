@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Criar Nova Lista - Lista de Presença</title>
+    
+    <!-- Script do Tailwind CSS via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <style>
+        /* Uma fonte mais moderna para o projeto */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        /* Animação de fade-in para a lista */
+        .fade-in {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Estilização customizada para os radio buttons */
+        input[type="radio"] { display: none; }
+        input[type="radio"] + label {
+            cursor: pointer;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            transition: all 0.2s ease-in-out;
+            border: 1px solid #4A5568;
+            color: #A0AEC0;
+            display: flex;
+            align-items: center;
+        }
+        input[type="radio"]:checked + label { font-weight: 600; }
+        input[id^="status-ausente"]:checked + label { background-color: #4A5568; border-color: #718096; color: #F7FAFC; }
+        input[id^="status-presencial"]:checked + label { background-color: #2F855A; border-color: #38A169; color: #FFFFFF; }
+        input[id^="status-zoom"]:checked + label { background-color: #2B6CB0; border-color: #3182CE; color: #FFFFFF; }
+        input[type="date"]::-webkit-calendar-picker-indicator { cursor: pointer; filter: invert(0.6) brightness(1.5); }
+    </style>
+</head>
+<body class="bg-gray-900 text-white min-h-screen">
+
+    <main class="max-w-4xl mx-auto p-4 sm:p-8">
+        
+        <!-- CABEÇALHO -->
+        <header class="mb-10">
+            <a href="index.html" class="text-cyan-400 hover:text-cyan-300 transition-colors mb-4 inline-block">&larr; Voltar ao Painel</a>
+            <h1 class="text-4xl font-bold text-white">Criar Nova Lista de Presença</h1>
+            <p class="text-lg text-gray-400 mt-1">Marque o status de cada participante para o evento.</p>
+        </header>
+
+        <!-- FORMULÁRIO PRINCIPAL -->
+        <form id="attendance-form">
+            <!-- Data, Nome da Lista e Pesquisa -->
+            <div class="bg-gray-800 p-6 rounded-xl border border-gray-700 mb-8">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label for="list-date" class="block text-sm font-medium text-gray-300 mb-2">Data da Lista</label>
+                        <input type="date" id="list-date" required class="w-full bg-gray-700 border border-gray-600 rounded-lg py-2 px-4 focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                    </div>
+                    <div>
+                        <label for="list-name" class="block text-sm font-medium text-gray-300 mb-2">Nome do Evento/Lista</label>
+                        <input type="text" id="list-name" placeholder="Ex: Reunião Semanal" required class="w-full bg-gray-700 border border-gray-600 rounded-lg py-2 px-4 focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                    </div>
+                </div>
+                <div class="mt-6">
+                     <label for="search-input" class="block text-sm font-medium text-gray-300 mb-2">Pesquisar Participante</label>
+                    <div class="relative">
+                        <input type="text" id="search-input" placeholder="Digite um nome para filtrar a lista..." class="w-full bg-gray-700 border border-gray-600 rounded-lg py-2 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <svg class="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" /></svg>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- LISTA DE PESSOAS PARA MARCAR PRESENÇA -->
+            <section id="attendance-list-container" class="space-y-3">
+                <!-- A lista de participantes será inserida aqui dinamicamente -->
+            </section>
+
+            <!-- BOTÕES DE AÇÃO -->
+            <div class="mt-8 flex justify-end gap-4">
+                <a href="index.html" class="py-2 px-6 bg-gray-600 hover:bg-gray-500 rounded-lg transition-colors">Cancelar</a>
+                <button type="submit" class="py-2 px-6 bg-cyan-600 hover:bg-cyan-500 rounded-lg font-semibold transition-colors transform hover:scale-105">Salvar Lista</button>
+            </div>
+        </form>
+    </main>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- ELEMENTOS DO DOM ---
+            const attendanceListContainer = document.getElementById('attendance-list-container');
+            const searchInput = document.getElementById('search-input');
+            const dateInput = document.getElementById('list-date');
+            const form = document.getElementById('attendance-form');
+            const listNameInput = document.getElementById('list-name');
+
+            // --- FUNÇÕES DE DADOS (localStorage) ---
+            const getPeople = () => JSON.parse(localStorage.getItem('attendance_people')) || [];
+            const getSavedLists = () => JSON.parse(localStorage.getItem('attendance_lists')) || [];
+            const saveLists = (lists) => localStorage.setItem('attendance_lists', JSON.stringify(lists));
+
+            // --- RENDERIZAÇÃO ---
+            function renderParticipants(filter = '') {
+                attendanceListContainer.innerHTML = '';
+                const people = getPeople();
+                
+                if (people.length === 0) {
+                    attendanceListContainer.innerHTML = `<div class="bg-gray-800/50 text-center p-8 rounded-lg">
+                                                            <h3 class="text-xl font-semibold text-gray-400">Nenhuma pessoa cadastrada.</h3>
+                                                            <p class="text-gray-500 mt-2">Vá para a página <a href="list.html" class="text-cyan-400 hover:underline">Gerenciar Pessoas</a> para adicionar participantes primeiro.</p>
+                                                         </div>`;
+                    return;
+                }
+
+                const filteredPeople = people
+                    .filter(p => p.name.toLowerCase().includes(filter.toLowerCase()))
+                    .sort((a, b) => a.name.localeCompare(b.name)); // <-- ORDENAÇÃO ALFABÉTICA
+                
+                filteredPeople.forEach(person => {
+                    const personId = person.id;
+                    const personElement = document.createElement('div');
+                    personElement.className = 'participant-item bg-gray-800/80 p-4 rounded-lg flex flex-col sm:flex-row items-center justify-between gap-4 transition-all duration-300 fade-in';
+                    personElement.dataset.personId = personId;
+                    personElement.dataset.personName = person.name;
+
+                    personElement.innerHTML = `
+                        <p class="font-medium text-lg">${person.name}</p>
+                        <div class="flex items-center space-x-2">
+                            <input type="radio" id="status-ausente-${personId}" name="status-person-${personId}" value="ausente" checked>
+                            <label for="status-ausente-${personId}">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" /></svg>
+                                Ausente
+                            </label>
+
+                            <input type="radio" id="status-presencial-${personId}" name="status-person-${personId}" value="presencial">
+                            <label for="status-presencial-${personId}">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" /></svg>
+                                Presencial
+                            </label>
+
+                            <input type="radio" id="status-zoom-${personId}" name="status-person-${personId}" value="zoom">
+                            <label for="status-zoom-${personId}">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 5a2 2 0 012-2h10a2 2 0 012 2v8a2 2 0 01-2 2h-2.22l.123.489a.5.5 0 01-.489.611H6.586a.5.5 0 01-.489-.611L6.22 15H4a2 2 0 01-2-2V5zm2-1a1 1 0 00-1 1v8a1 1 0 001 1h10a1 1 0 001-1V5a1 1 0 00-1-1H5z" clip-rule="evenodd" /></svg>
+                                Zoom
+                            </label>
+                        </div>
+                    `;
+                    attendanceListContainer.appendChild(personElement);
+                });
+            }
+
+            // --- LÓGICA DO FORMULÁRIO ---
+            form.addEventListener('submit', (e) => {
+                e.preventDefault();
+                
+                const listName = listNameInput.value.trim();
+                const listDate = dateInput.value;
+
+                if (!listName || !listDate) {
+                    alert('Por favor, preencha o nome e a data da lista.');
+                    return;
+                }
+
+                const participants = {};
+                const participantItems = document.querySelectorAll('.participant-item');
+                participantItems.forEach(item => {
+                    const personId = item.dataset.personId;
+                    const personName = item.dataset.personName;
+                    const status = item.querySelector(`input[name="status-person-${personId}"]:checked`).value;
+                    participants[personId] = { name: personName, status: status };
+                });
+
+                const newList = {
+                    id: crypto.randomUUID(),
+                    name: listName,
+                    date: listDate,
+                    participants: participants
+                };
+
+                const lists = getSavedLists();
+                lists.push(newList);
+                saveLists(lists);
+
+                alert(`Lista "${listName}" salva com sucesso!`);
+                window.location.href = 'index.html';
+            });
+
+            // --- EVENT LISTENERS ---
+            searchInput.addEventListener('input', () => renderParticipants(searchInput.value));
+
+            // --- INICIALIZAÇÃO ---
+            function initializePage() {
+                // Define a data padrão como a data de hoje
+                dateInput.valueAsDate = new Date();
+                renderParticipants();
+            }
+
+            initializePage();
+        });
+    </script>
+</body>
+</html>
